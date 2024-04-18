@@ -10,6 +10,11 @@
 
 #define servoPin 2
 
+#define IRFORWARD 26
+#define IRLEFT 28
+#define IRRIGHT 30
+#define IRREAR 32
+
 #define ROWS 50
 #define COLS 70
 int matrix[ROWS][COLS] = {};
@@ -23,7 +28,7 @@ Servo pen;
 int servopos = 0;
 
 /*Radio*/
-RF24 radio(10, 11); // CE, CSN
+RF24 radio(8, 9); // CE, CSN
 const byte address[6] = "00001";
 char receivedData[32] = "";
 int buttonPushCounter;
@@ -62,6 +67,11 @@ void setup() {
   rearRightMotor.attach(REAR_RIGHT_PIN);
 
   pen.attach(servoPin);
+  
+  pinMode(IRFORWARD, INPUT);
+  pinMode(IRLEFT, INPUT);
+  pinMode(IRRIGHT, INPUT);
+  pinMode(IRREAR, INPUT);
 
   Serial.begin(9600);
   radio.begin();
@@ -77,15 +87,7 @@ void setup() {
   radio.startListening();
 }
 
-int x;
 void loop() {
-    /* forward */
-  // frontLeftMotorControl(100);
-  // rearLeftMotorControl(100);
-  // frontRightMotorControl(100);
-  // rearRightMotorControl(100);
-  // delay(5000);
-
   if (radio.available()) {
     // Read the received data into the variable
     radio.read(&buttonPushCounter, sizeof(buttonPushCounter));
@@ -96,21 +98,15 @@ void loop() {
       // Process accordingly
     } else if (buttonPushCounter == 1) {
       // If the NRF240L01 module received data
-      radio.read(&receivedData, sizeof(receivedData)); // Read the data and put it into character array
-      xAxis = atoi(&receivedData[0]); // Convert the data from the character array (received X value) into integer
-      Serial.print("x: ");
-      Serial.print(xAxis);
-      Serial.print("\t");
-      Serial.print("\n");
-      delay(5);
-      radio.read(&receivedData, sizeof(receivedData));
-      yAxis = atoi(&receivedData[0]);
-      Serial.print("y: ");
-      Serial.print(yAxis);
-      Serial.print("\t");
-      Serial.print("\n");
-      calculateAndSetMotorSpeeds(xAxis, yAxis);
-      delay(5);
+      if (digitalRead(IRFORWARD) == 0 || digitalRead(IRLEFT) == 0 || digitalRead(IRRIGHT) == 0 || digitalRead(IRREAR) == 0){
+        frontLeftMotorControl(0);
+        rearLeftMotorControl(0);
+        frontRightMotorControl(0);
+        rearRightMotorControl(0);
+      }
+      else {
+        xyvalues();
+      }
 
     } else if (buttonPushCounter == 2) {
       Serial.println("Button State 2 received");
@@ -124,6 +120,24 @@ void loop() {
     // You could also add a delay here to avoid continuous printing
     delay(20);
   }
+}
+
+void xyvalues(){
+  radio.read(&receivedData, sizeof(receivedData)); // Read the data and put it into character array
+  xAxis = atoi(&receivedData[0]); // Convert the data from the character array (received X value) into integer
+  Serial.print("x: ");
+  Serial.print(xAxis);
+  Serial.print("\t");
+  Serial.print("\n");
+  delay(5);
+  radio.read(&receivedData, sizeof(receivedData));
+  yAxis = atoi(&receivedData[0]);
+  Serial.print("y: ");
+  Serial.print(yAxis);
+  Serial.print("\t");
+  Serial.print("\n");
+  calculateAndSetMotorSpeeds(xAxis, yAxis);
+  delay(5);
 }
 
 void calculateAndSetMotorSpeeds(int xAxis, int yAxis) {
